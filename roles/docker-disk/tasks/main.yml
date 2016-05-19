@@ -1,0 +1,9 @@
+
+- name: Create the directory to hold the script and flag files
+  file: dest=/root/.ansible-setup state=directory
+
+- name: Install the docker storage volume setup script
+  copy: src=files/docker-data-volume.sh dest=/root/.ansible-setup/docker-data-volume.sh mode=0755
+
+- name: Execute the volume setup script
+  command: /root/.ansible-setup/docker-data-volume.sh creates=/root/.ansible-setup/docker-data-volume.done

@@ -1,0 +1,9 @@
+- name: Provision storage disk(s)
+  when: "{{ new_server_names.strip() | length > 0 }}"
+  ec2_vol:
+    name: "{{ data_disk_name }}"
+    instance: "{{ item.id }}"
+    volume_type: "{{ ec2_server_data_disks_type }}"
+    volume_size: "{{ server_data_disks_size_gb }}"
+    delete_on_termination: true
+  with_items: "{{ ec2.instances | default([]) }}"

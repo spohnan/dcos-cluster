@@ -1,0 +1,13 @@
+
+- name: Add EPEL repo
+  when: ansible_os_family == "RedHat"
+  yum: name="https://dl.fedoraproject.org/pub/epel/epel-release-latest-{{ ansible_distribution_major_version }}.noarch.rpm" state=present
+
+- name: Add Gluster EPEL repository
+  when: ansible_os_family == "RedHat"
+  get_url: url="https://download.gluster.org/pub/gluster/glusterfs/{{ gluster_version }}/LATEST/EPEL.repo/glusterfs-epel.repo" dest=/etc/yum.repos.d/glusterfs-epel.repo mode=0644
+
+- name: Install GlusterFS client components
+  yum: "name={{ item }} state=installed"
+  with_items:
+    - glusterfs-fuse

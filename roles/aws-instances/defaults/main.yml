@@ -1,0 +1,28 @@
+#
+# Mesos instance default settings
+#
+# Reference info for settings and pricing
+#
+# http://docs.ansible.com/ansible/ec2_module.html
+# https://aws.amazon.com/ec2/pricing/
+# https://aws.amazon.com/ebs/pricing/
+
+# The number of servers in your cluster
+server_count: 2
+
+# The size of each server
+ec2_server_instance_type: m4.large
+
+# The root volume size of each server
+server_root_volume_size: 10
+
+# The root volume type
+ec2_root_volume_type: gp2
+
+# Location, network and OS image settings for all
+ec2_image: ami-6d1c2007 # CentOS Linux 7 x86_64 HVM EBS
+ec2_region: us-east-1
+assign_public_ip: yes
+ec2_tag_Billing: ""
+ec2_iam_role: ""
+role: worker

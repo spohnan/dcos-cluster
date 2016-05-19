@@ -1,0 +1,61 @@
+- name: New server instance(s)
+  when: "{{ new_server_names.strip() | length > 0 }}"
+  debug: msg="Creating new instance(s) - {{ new_server_names.strip() }}"
+
+- name: Provision EC2 Instance(s)
+  when: "{{ new_server_names.strip() | length > 0 }}"
+  ec2:
+    count: 1
+    key_name: "{{ ec2_keypair }}"
+    group: "{{ ec2_security_groups }}"
+    instance_type: "{{ ec2_server_instance_type }}"
+    image: "{{ ec2_image }}"
+    instance_profile_name: "{{ ec2_iam_role }}"
+    vpc_subnet_id: "{{ ec2_subnet_ids|random }}"
+    region: "{{ ec2_region }}"
+    wait: true
+    instance_tags:
+      Cluster: "{{ ec2_tag_Cluster }}"
+      Name: "{{ item }}"
+      Role: "{{ role }}"
+      Type: "{{ ec2_tag_Type }}"
+      billing: "{{ ec2_tag_Billing }}"
+    assign_public_ip: "{{ assign_public_ip }}"
+    volumes:
+    - device_name: /dev/sda1
+      device_type: "{{ ec2_root_volume_type }}"
+      volume_size: "{{ server_root_volume_size }}"
+      delete_on_termination: true
+  with_items: "{{ server_names }}"
+
+#
+# This is a bit of a hack!
+#
+# I want to set the Name and Role tags on the new instances at build time so in the step above
+# I'm iterating over each and building one at a time which then messes up the usual pattern of
+# registering all new instances with the return value of the single ec2 provision call
+#
+# So to recover I've got wait: true turned on to ensure the new instances are in the started state
+# before continuing and then querying for the instances in the step below and registering the usual
+# ec2 variable result
+#
+# This probably costs a couple of extra seconds per instance provisioned but as the provisioning
+# step is a one time cost hopefully it won't be too annoying
+#
+- name: Query to find all cluster instances in this role
+  when: new_server_names.strip() | length > 0
+  ec2_remote_facts:
+    region: "{{ ec2_region }}"
+    filters:
+      "tag:Cluster": "{{ ec2_tag_Cluster }}"
+      "tag:Role": "{{ role }}"
+      instance-state-name: ["started","running"]
+  register: ec2
+
+- name: Wait for SSH
+  local_action: shell ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "{{ item.private_ip_address }}" echo hello
+  register: retval
+  retries: 5
+  delay: 20
+  until: retval.stdout.find('hello') != -1
+  with_items: "{{ ec2.instances | default([]) }}"

@@ -1,0 +1,20 @@
+#
+# Storage volume default settings
+#
+# Reference info for settings and pricing
+#
+# http://docs.ansible.com/ansible/ec2_vol_module.html
+# https://aws.amazon.com/ebs/pricing/
+#
+
+# The number of additional data disks to add to a server
+server_data_disks: 1
+
+# The size of each data disk
+server_data_disks_size_gb: 10
+
+# The disk type
+ec2_server_data_disks_type: gp2
+
+# A value set for the Name tag of the volume
+data_disk_name:
