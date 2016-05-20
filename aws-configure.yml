@@ -24,3 +24,17 @@
 
     - name: Ensure hostname is preserved in cloud-init
       lineinfile: "dest=/etc/cloud/cloud.cfg regexp='^preserve_hostname' line='preserve_hostname: true' state=present"
+
+    - name: Create mount directory if specified
+      file: path="{{ gluster_mount_dir }}" state=directory
+      when: gluster_mount_dir is defined
+      tags: gluster
+
+    - name: Update /etc/fstab file
+      lineinfile: dest=/etc/fstab line="{{ gluster_mount_info }}" state=present
+      when: gluster_mount_info|default("") != ""
+      tags: gluster
+
+    - name: Hosts file
+      template: src=files/hosts.j2 dest=/etc/hosts mode=0644
+      tags: use_hosts_file
