@@ -1,83 +1,95 @@
 #
-# Create Base Instance (delete_on_termination for EBS vols requires Ansible 2.1+)
+# Configuration of instance
 #
-- name: Create Base Instance
-  any_errors_fatal: true
-  hosts: localhost
-  connection: local
-  vars_files:
-    - "vars/{{ varfile }}"
-  vars:
-    - role: "dcos"
-    - ec2_tag_Type: "ami"
-    - ec2_tag_Cluster: "dcos"
-    - new_server_names: dcos-ami
-    - server_names: dcos-ami
-  roles:
-    - python-modules
-    - aws-instances
-    - aws-disks
-
-#
-# Refresh inventory (requires Ansible 2.x+)
-#
-- name: Pick up newly created instances in dynamic inventory
-  meta: refresh_inventory
-
-#
-# Configuration and Creation of AMI
-#
-- name: Configuration and Creation of AMI
-  hosts: "tag_Type_ami:&tag_Cluster_dcos"
+- name: Configuration of instance
+  hosts: "tag_Role_dcos:&tag_Type_ami"
   become: yes
   vars_files:
     - "vars/{{ varfile }}"
   pre_tasks:
     - name: Remove require tty
       lineinfile: regexp="Defaults\s+requiretty" dest=/etc/sudoers state=absent
+      tags:
+        - configure
 
     - name: Do not use DNS resolution for SSH
       lineinfile: regexp="Use\s+DNS" dest=/etc/ssh/sshd_config state=absent
+      tags:
+        - configure
 
     - name: Do not use DNS resolution for SSH
       lineinfile: regexp="^Use\s+DNS" dest=/etc/ssh/sshd_config  line="UseDNS no" state=present
+      tags:
+        - configure
 
     - name: Restart SSH
       service: name=sshd state=restarted
+      tags:
+        - configure
 
     - name: Turn off ipv6
       sysctl: name=net.ipv6.conf.all.disable_ipv6 value=1 state=present
+      tags:
+        - configure
 
     - name: Turn off ipv6
       sysctl: name=net.ipv6.conf.default.disable_ipv6 value=1 state=present
+      tags:
+        - configure
 
     - name: Turn down vm.swappiness setting
       sysctl: name=vm.swappiness value=5 state=present
-
+      tags:
+        - configure
   roles:
-    - docker
-    - docker-disk
-    - gluster-client
+    - { role: docker,         tags: ['configure'] }
+    - { role: docker-disk,    tags: ['configure'] }
+    - { role: gluster-client, tags: ['configure'] }
   tasks:
+
+    - name: Install Python virtualenv
+      yum: name=python-pip state=latest
+      when: ansible_os_family == "RedHat"
+
+    - name: Install virtualenv
+      pip: name=virtualenv
+
     - name: Ensure Docker is automatically started
       service: name=docker enabled=yes
 
     - name: Upgrade all packages
       yum: name=* state=latest
       when: ansible_os_family == "RedHat"
+      tags:
+        - configure
 
     - name: Clear yum cache
       command: /usr/bin/yum clean all warn=false
       when: ansible_os_family == "RedHat"
+      tags:
+        - configure
 
     - name: Ensure SELinux is disabled
       selinux: policy=targeted state=disabled
       when: ansible_os_family == "RedHat"
+      tags:
+        - configure
 
+#
+# Creation of AMI
+#
+- name: Creation of AMI
+  hosts: "tag_Role_dcos:&tag_Type_ami"
+  become: yes
+  vars_files:
+    - "vars/{{ varfile }}"
+  tasks:
     - name: Create the AMI
       delegate_to: localhost
+      tags:
+        - ami
       ec2_ami:
-        name: "dcos-ami-{{ ansible_date_time.iso8601_basic_short }}"
+        name: "{{ ec2_tag_Name }}"
         instance_id: "{{ ec2_id }}"
         region: "{{ region }}"
         aws_access_key: "{{ lookup('env', 'AWS_ACCESS_KEY_ID') }}"

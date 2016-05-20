@@ -1,1 +1,7 @@
 
+* Ensure base AMI ID has been configured in environment specific env file ex: vars/my_env.yml
+* Create AMI - ./bootstrap.sh --prefix dc1 --vars my_env.yml --action ami
+* Update dcos_ami_id property in environment specific env file to use the AMI we just created
+* Create Cluster - ./bootstrap.sh --prefix dc1 --vars my_env.yml --action cluster
+* Provision and attach EIPs to master node(s)
+* Configure DNS for cluster members

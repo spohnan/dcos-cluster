@@ -1,0 +1,65 @@
+#
+# Create DCOS bootstrap instance
+#
+- name: Create DCOS bootstrap instance
+  any_errors_fatal: true
+  hosts: localhost
+  connection: local
+  vars_files:
+    - "vars/{{ varfile }}"
+  vars:
+    - role: "bootstrap"
+    - ec2_tag_Type: "dcos"
+    - existing_bootstrap_names: "{{ groups['tag_Role_bootstrap'] | default([]) | intersect( groups['tag_Cluster_' + cluster_prefix] | default([]) ) }}"
+    - new_server_names: |
+        {% for s in range(0, 1 - existing_bootstrap_names | length ) -%}
+          {{ cluster_prefix }}-{{ ec2_tag_Type }}-{{ role }}
+        {%- endfor %}
+    - server_names: "{{ existing_bootstrap_names | union(new_server_names.strip().split(',')) }}"
+  roles:
+    - { role: python-modules }
+    - { role: aws-instances,  server_count: 1, ec2_image: "{{ dcos_ami_id }}", ec2_server_instance_type: t2.medium }
+
+#
+# Create DCOS master node(s)
+#
+- name: Create DCOS master node(s)
+  any_errors_fatal: true
+  hosts: localhost
+  connection: local
+  vars_files:
+    - "vars/{{ varfile }}"
+  vars:
+    - role: "master"
+    - ec2_tag_Type: "dcos"
+    - ec2_instance_type: "{{ ec2_storage_server_instance_type}}"
+    - existing_master_names: "{{ groups['tag_Role_master'] | default([]) | intersect( groups['tag_Cluster_' + cluster_prefix] | default([]) ) }}"
+    - new_server_names: |
+        {% for s in range(0, mesos_master_count - existing_master_names | length ) -%}
+          {{ cluster_prefix }}-{{ ec2_tag_Type }}-master-{{ ( s ~ ec2_tag_Type ~ ansible_date_time.iso8601_micro ) | hash('sha1')|string | truncate(6, false, '')}}{% if not loop.last %},{% endif %}
+        {%- endfor %}
+    - server_names: "{{ existing_master_names | union(new_server_names.strip().split(',')) }}"
+  roles:
+    - { role: aws-instances, ec2_subnet_ids: "{{ ec2_public_subnet_ids }}", ec2_image: "{{ dcos_ami_id }}" }
+
+#
+# Create DCOS agent node(s)
+#
+- name: Create DCOS agent node(s)
+  any_errors_fatal: true
+  hosts: localhost
+  connection: local
+  vars_files:
+    - "vars/{{ varfile }}"
+  vars:
+    - role: "agent"
+    - ec2_tag_Type: "dcos"
+    - ec2_instance_type: "{{ ec2_storage_server_instance_type}}"
+    - existing_agent_names: "{{ groups['tag_Role_agent'] | default([]) | intersect( groups['tag_Cluster_' + cluster_prefix] | default([]) ) }}"
+    - new_server_names: |
+        {% for s in range(0, server_count - mesos_master_count - existing_agent_names | length ) -%}
+          {{ cluster_prefix }}-{{ ec2_tag_Type }}-agent-{{ ( s ~ ec2_tag_Type ~ ansible_date_time.iso8601_micro ) | hash('sha1')|string | truncate(6, false, '')}}{% if not loop.last %},{% endif %}
+        {%- endfor %}
+    - server_names: "{{ existing_agent_names | union(new_server_names.strip().split(',')) }}"
+  roles:
+    - { role: aws-instances, ec2_subnet_ids: "{{ ec2_public_subnet_ids }}", ec2_image: "{{ dcos_ami_id }}" }

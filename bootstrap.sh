@@ -63,13 +63,19 @@ run_playbook() {
 #  - Multi-step playbook actions are run in a loop
 #  - Individual playbook names can be specified and they will be run
 case "${ARGS[action]}" in
-	"list-inventory") list_inventory ;;
-	"build-ami")
+	"ami")
 		STEPS=( "ami-provision" "ami-configure" )
 		for step in "${STEPS[@]}"; do
 			run_playbook $step
 			list_inventory > /dev/null 2>&1 # Update cache
 		done ;;
+	"cluster")
+		STEPS=( "provision" "configure" )
+		for step in "${STEPS[@]}"; do
+			run_playbook $step
+			list_inventory > /dev/null 2>&1 # Update cache
+		done ;;
+	"list-inventory") list_inventory ;;
 	"ping") ansible -i hosts/"${ARGS[provider]}" "tag_Cluster_${ARGS[prefix]}" -m ping;;
 	*) run_playbook "${ARGS[action]}" ;; # Anything else should be a playbook
 esac

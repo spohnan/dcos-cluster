@@ -1,0 +1,21 @@
+#
+# Create Base Instance (delete_on_termination for EBS vols requires Ansible 2.1+)
+#
+- name: Create Base Instance
+  any_errors_fatal: true
+  hosts: localhost
+  connection: local
+  vars_files:
+    - "vars/{{ varfile }}"
+  vars:
+    - server_count: 1
+    - role: "dcos"
+    - ec2_tag_Type: "ami"
+    - ec2_tag_Cluster: "dcos"
+    - ami_instance_name: "dcos-ami-{{ ansible_date_time.iso8601_basic_short }}"
+    - new_server_names: "{{ ami_instance_name }}"
+    - server_names: "{{ ami_instance_name }}"
+  roles:
+    - { role: python-modules }
+    - { role: aws-instances, ec2_server_instance_type: t2.small }
+    - { role: aws-disks }

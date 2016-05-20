@@ -1,0 +1,26 @@
+#
+# Finish with account provisioning and local networking if needed
+#
+- name: Final provisioning config
+  hosts: "tag_Type_dcos:&tag_Cluster_{{ cluster_prefix }}"
+  become: true
+  vars_files:
+    - "vars/{{ varfile }}"
+  vars:
+      - ec2_tag_Type: "dcos"
+  tasks:
+
+    - name: Add a Mesos Admin user account for this cluster
+      user: name="{{ mesos_admin_username }}" comment="Mesos Admin"
+            state=present
+            groups="wheel,sshusers"
+
+    - name: Add a Mesos Admin user account SSH key
+      authorized_key: user="{{ mesos_admin_username }}" key="{{ lookup('file', mesos_admin_keyfile) }}"
+
+    - name: Run hostnamectl command
+      hostname:
+        name: "{{ ec2_tag_Name }}.{{ domain }}"
+
+    - name: Ensure hostname is preserved in cloud-init
+      lineinfile: "dest=/etc/cloud/cloud.cfg regexp='^preserve_hostname' line='preserve_hostname: true' state=present"
